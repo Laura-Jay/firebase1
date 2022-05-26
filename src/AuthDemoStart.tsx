@@ -1,7 +1,12 @@
 import axios from "axios";
-import React, { useState } from "react";
+import { useState } from "react";
+import { auth, googleAuthProvider } from './configureFirebase'
+import { signInWithPopup, UserCredential, User} from 'firebase/auth'
+
 
 export function AuthDemoStart(): JSX.Element {
+    const [user, setUser] = useState<User | null>()
+
     const [lastAPIReply, setLastAPIReply] = useState<string>("");
 
 
@@ -12,16 +17,43 @@ export function AuthDemoStart(): JSX.Element {
 
     async function handleFetchWisdomClicked() {
         //This SHOULD be hard to get, eventually.
-        const reply = await axios.get("http://localhost:4000/wisdom");
+        if (!user) { 
+           console.log('no user')
+           return
+        }
+        const token =  await user.getIdToken()
+        const config = {headers: {'Authorization': "Bearer " + token }}
+        const reply = await axios.get("http://localhost:4000/wisdom", config);
         setLastAPIReply(reply.data);
     }
+
+    async function handleSignIn() {
+      const userCredential: UserCredential = await signInWithPopup(auth, googleAuthProvider);
+      const retrievedUser: User = userCredential.user;
+      setUser(retrievedUser);
+    }
+
+    async function handleSignOut() {
+        auth.signOut();
+        setUser(null)
+    }
+
+    
 
     return (
         <div>
             <h2>Auth Demo</h2>
 
-            <button onClick={() => alert("not implemented")}>Sign in</button>
-            <button onClick={() => alert("not implemented")}>Sign out</button>
+            <button onClick={handleSignIn}>Sign in</button>
+            <button onClick={handleSignOut}>Sign out</button>
+            { user?.photoURL && 
+            <div>
+                <h3>Signed in as: {user.displayName}</h3>
+                {user.photoURL!==null && <img src={user.photoURL} alt='display'/>}
+                <h3>Email: {user?.email}</h3>
+
+            </div>
+            }
 
             <hr />
             <h3>Talk to the API</h3>
